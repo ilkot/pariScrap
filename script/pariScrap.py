@@ -137,7 +137,3 @@ fileName = localPath+saveTag+".csv"
 parariDf.to_csv(fileName)
 
 #%%
-
-
-        
- 
