@@ -2,7 +2,8 @@ from bs4 import BeautifulSoup
 import requests
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta
+import re
 
 #%%funcs
 # find numbers in text and convert to float 
@@ -15,9 +16,8 @@ def findDigit(stringInput):
 
 
 #%% build-up
-pariLink = 'http://www.pararius.com'
-parariUrl = 'https://www.pararius.com/apartments/amsterdam/0-3000/3-rooms/2-bedrooms/75m2'
 parariUrl = 'https://www.pararius.com/apartments/amsterdam'
+pariLink = 'https://www.pararius.com'
 parari = requests.get(parariUrl)
 parariSoup = BeautifulSoup(parari.text,'html.parser')
 
@@ -54,6 +54,10 @@ for pageLink in linkList:
     linkList = []
     idList = []
     homeStatusList = []
+    statusList = []
+    availabiltyList = []
+    offeredSinceList = []
+    energyList = []
     
     for p in parariList:
         
@@ -94,6 +98,26 @@ for pageLink in linkList:
             hid = link.split('/')[3]
             link = pariLink+link
             
+            houseReq = requests.get(link)
+            houseSoup = BeautifulSoup(houseReq.text,'html.parser')
+            
+            features = houseSoup.find_all("div",{'class':'listing-features'})
+            
+            available= features[0].find_all("dd",{'listing-features__description listing-features__description--acceptance'})[0].get_text()
+            
+            #TODO
+            #availableReg = re.compile(r'\d\d-\d\d-\d\d\d\d')
+            #availablex = availableReg.search(available).group()
+
+            offered_since= features[0].find_all("dd",{'listing-features__description listing-features__description--offered_since'})[0].get_text()
+            status = features[0].find_all("dd",{'listing-features__description listing-features__description--status'})[0].get_text()
+            
+            try:    
+                energy = features[5].find_all("dd",{'class': re.compile(r'energy')})[0].get_text().strip()
+            except:
+                energy = 'Not Available'
+            
+            
             #storage
             idList.append(hid)
             titleList.append(title)
@@ -107,12 +131,19 @@ for pageLink in linkList:
             interiorList.append(interior)
             realEstateAgentList.append(realEstate)
             linkList.append(link)
+            offeredSinceList.append(offered_since)
+            availabiltyList.append(available)
+            statusList.append(status)
+            energyList.append(energy)
     
             #check length for every list
             
         houseDict = {'id':idList,
                      'header':titleList,
+                     'offeredSince':offeredSinceList,
+                     'availabilty':availabiltyList,
                      'status':homeStatusList,
+                     'statusNew':statusList,
                      'price':priceList,
                      'postCode1':po1List,
                      'postCode2':po2List,
@@ -120,6 +151,7 @@ for pageLink in linkList:
                      'areaM2':areaList,
                      'rooms':roomsList,
                      'interior':interiorList,
+                     'energy':energyList,
                      'agent':realEstateAgentList,
                      'link':linkList}
     
@@ -136,4 +168,35 @@ localPath = "D:/github/pariScrap/data/"
 fileName = localPath+saveTag+".csv"
 parariDf.to_csv(fileName)
 
+#%%filter df
+postCodeList = [1072,1073,1074,
+                1071,1078,1091,
+                1092,1093,
+                1097,1098] 
+
+priceFilter = 3000
+roomFilter = 2
+m2Filter = 70
+dateFilter = datetime.today() - timedelta(days=7)
+statusAvailabilityFilter = ['In consultation','Rented under option','Under offer','Under option']
+
+
+
+parariDf['availabilty'] = parariDf['availabilty'].apply(lambda x: x.strip())
+parariDf['status'] = parariDf['status'].apply(lambda x: x.strip())
+parariDf["postCode1"] = parariDf["postCode1"].astype(int)
+parariDf['offeredSince2'] = parariDf['offeredSince'].apply(lambda x: pd.to_datetime(x) if ('2022' in x or '2023' in x) else np.nan)
+
+
+
+fParariDf = parariDf[parariDf["postCode1"].isin(postCodeList)]
+fParariDf = fParariDf[fParariDf["price"]<=priceFilter]
+fParariDf = fParariDf[fParariDf["rooms"]>roomFilter]
+fParariDf = fParariDf[fParariDf["areaM2"]>m2Filter]
+fParariDf = fParariDf[fParariDf['offeredSince2']>dateFilter]
+fParariDf = fParariDf[~fParariDf['availabilty'].isin(statusAvailabilityFilter)]
+fParariDf = fParariDf[~fParariDf['status'].isin(statusAvailabilityFilter)]
+
 #%%
+
+
