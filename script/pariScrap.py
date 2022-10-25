@@ -4,7 +4,8 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import re
-
+import tkinter as tk
+from pandastable import Table
 #%%funcs
 # find numbers in text and convert to float 
 def findDigit(stringInput):
@@ -172,7 +173,7 @@ parariDf.to_csv(fileName)
 postCodeList = [1072,1073,1074,
                 1071,1078,1091,
                 1092,1093,
-                1097,1098] 
+                1097,1098]
 
 priceFilter = 3000
 roomFilter = 2
@@ -181,12 +182,10 @@ dateFilter = datetime.today() - timedelta(days=7)
 statusAvailabilityFilter = ['In consultation','Rented under option','Under offer','Under option']
 
 
-
 parariDf['availabilty'] = parariDf['availabilty'].apply(lambda x: x.strip())
 parariDf['status'] = parariDf['status'].apply(lambda x: x.strip())
 parariDf["postCode1"] = parariDf["postCode1"].astype(int)
 parariDf['offeredSince2'] = parariDf['offeredSince'].apply(lambda x: pd.to_datetime(x) if ('2022' in x or '2023' in x) else np.nan)
-
 
 
 fParariDf = parariDf[parariDf["postCode1"].isin(postCodeList)]
@@ -198,5 +197,16 @@ fParariDf = fParariDf[~fParariDf['availabilty'].isin(statusAvailabilityFilter)]
 fParariDf = fParariDf[~fParariDf['status'].isin(statusAvailabilityFilter)]
 
 #%%
+root = tk.Tk()
+root.title('test')
+root.geometry("1500x500")
 
+frame = tk.Frame(root)
+frame.pack(fill='both', expand=True)
 
+pt = Table(frame, dataframe=fParariDf, showtoolbar=True, showstatusbar=True)
+pt.show()
+
+root.mainloop()
+
+#%%
