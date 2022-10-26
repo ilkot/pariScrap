@@ -25,7 +25,7 @@ parariSoup = BeautifulSoup(parari.text,'html.parser')
 #get total house number in order to get page count
 parariPageCount = parariSoup.find_all("div",{'class':'search-list-header__title'})[0].get_text().split()[0]
 parariPageCount = int(parariPageCount)
-pageMaxCount = 30 # max 30 advertisement in 1 page
+pageMaxCount = 30 # max 30 advertisement in 1 page TODO:make it dynamic
 totalPage = int((parariPageCount/pageMaxCount)+1)
 #derive links based on pageCpunt
 linkList = []
@@ -33,9 +33,10 @@ for i in range(totalPage):
     pageLink=parariUrl+'/page-'+str(i+1)
     linkList.append(pageLink)
 
-#%%
-parariDf = pd.DataFrame()
 
+#%%scrap pararius
+parariDf = pd.DataFrame()
+counter=1
 for pageLink in linkList:
     
     linkReq = requests.get(pageLink)
@@ -52,13 +53,17 @@ for pageLink in linkList:
     interiorList=[]
     realEstateAgentList = []
     titleList=[]
-    linkList = []
+    linkListHouse = []
     idList = []
     homeStatusList = []
     statusList = []
     availabiltyList = []
     offeredSinceList = []
     energyList = []
+    
+    print(f"INFO...{counter}/{len(linkList)}")
+    counter+=1
+    
     
     for p in parariList:
         
@@ -131,13 +136,15 @@ for pageLink in linkList:
             roomsList.append(rooms)
             interiorList.append(interior)
             realEstateAgentList.append(realEstate)
-            linkList.append(link)
+            linkListHouse.append(link)
             offeredSinceList.append(offered_since)
             availabiltyList.append(available)
             statusList.append(status)
             energyList.append(energy)
     
             #check length for every list
+
+            ###########
             
         houseDict = {'id':idList,
                      'header':titleList,
@@ -154,13 +161,14 @@ for pageLink in linkList:
                      'interior':interiorList,
                      'energy':energyList,
                      'agent':realEstateAgentList,
-                     'link':linkList}
+                     'link':linkListHouse}
     
         houseDf = pd.DataFrame(houseDict)
         parariDf = parariDf.append(houseDf)
         
+        
 
-#%%
+#%%write to drive
 #highlighted houses duplicates in the list, since we have ids we can remove them
 parariDf = parariDf.drop_duplicates()
 parariDf['scrapDate'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -170,6 +178,8 @@ fileName = localPath+saveTag+".csv"
 parariDf.to_csv(fileName)
 
 #%%filter df
+
+#assign filters
 postCodeList = [1072,1073,1074,
                 1071,1078,1091,
                 1092,1093,
@@ -177,17 +187,17 @@ postCodeList = [1072,1073,1074,
 
 priceFilter = 3000
 roomFilter = 2
-m2Filter = 70
+m2Filter = 65
 dateFilter = datetime.today() - timedelta(days=7)
 statusAvailabilityFilter = ['In consultation','Rented under option','Under offer','Under option']
 
-
+#format df
 parariDf['availabilty'] = parariDf['availabilty'].apply(lambda x: x.strip())
 parariDf['status'] = parariDf['status'].apply(lambda x: x.strip())
 parariDf["postCode1"] = parariDf["postCode1"].astype(int)
-parariDf['offeredSince2'] = parariDf['offeredSince'].apply(lambda x: pd.to_datetime(x) if ('2022' in x or '2023' in x) else np.nan)
+parariDf['offeredSince2'] = parariDf['offeredSince'].apply(lambda x: pd.to_datetime(x.strip(),dayfirst=True) if ('2022' in x or '2023' in x) else np.nan)
 
-
+#apply filters
 fParariDf = parariDf[parariDf["postCode1"].isin(postCodeList)]
 fParariDf = fParariDf[fParariDf["price"]<=priceFilter]
 fParariDf = fParariDf[fParariDf["rooms"]>roomFilter]
@@ -196,9 +206,9 @@ fParariDf = fParariDf[fParariDf['offeredSince2']>dateFilter]
 fParariDf = fParariDf[~fParariDf['availabilty'].isin(statusAvailabilityFilter)]
 fParariDf = fParariDf[~fParariDf['status'].isin(statusAvailabilityFilter)]
 
-#%%
+#%%tkinter visualize filtered df
 root = tk.Tk()
-root.title('test')
+root.title('Filtered_df')
 root.geometry("1500x500")
 
 frame = tk.Frame(root)
